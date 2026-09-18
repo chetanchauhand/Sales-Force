@@ -1,4 +1,4 @@
-# Student Marks Analyzer
+# Folder Analyzer
 
 import os
 import shutil
