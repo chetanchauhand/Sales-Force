@@ -7,252 +7,231 @@ import array
 pygame.mixer.pre_init(44100, -16, 1, 512)
 pygame.init()
 
-W, H = 1000, 650
+W, H = 900, 600
 screen = pygame.display.set_mode((W, H))
-pygame.display.set_caption("FART MAN SIMULATOR 💨")
+pygame.display.set_caption("😂 NAME FART GENERATOR 💨")
 clock = pygame.time.Clock()
 
-# Generate funny sound without external audio files
-def make_fart_sound(duration=0.38):
+font = pygame.font.SysFont("comicsansms", 30, bold=True)
+big_font = pygame.font.SysFont("comicsansms", 43, bold=True)
+small_font = pygame.font.SysFont("comicsansms", 21, bold=True)
+
+# Sound generator: different cartoon pitches and patterns
+def create_sound(kind):
     rate = 22050
+    duration = 0.85 if kind == "loud" else 0.35
     samples = array.array("h")
     phase = 0
 
     for i in range(int(rate * duration)):
         t = i / rate
-        envelope = (1 - t / duration) ** 0.7
-        freq = 85 + 30 * math.sin(t * 35) + 15 * math.sin(t * 91)
-        phase += 2 * math.pi * freq / rate
 
-        noise = random.uniform(-1, 1)
-        value = (math.sin(phase) * 0.65 + noise * 0.35)
-        samples.append(int(10000 * envelope * value))
+        if kind == "loud":
+            freq = 65 + 45 * math.sin(t * 32) + 20 * math.sin(t * 85)
+            envelope = min(1, t * 35) * max(0, 1 - t / duration)
+            noise = random.uniform(-1, 1) * 0.65
+            volume = 26000
+        elif kind == "poin":
+            freq = 250 + 220 * math.sin(t * 15)
+            envelope = max(0, 1 - t / duration)
+            noise = 0
+            volume = 14000
+        elif kind == "bhu":
+            freq = 90 + 35 * math.sin(t * 20)
+            envelope = max(0, 1 - t / duration)
+            noise = random.uniform(-1, 1) * 0.25
+            volume = 18000
+        else:
+            freq = 125 + 65 * math.sin(t * 40)
+            envelope = max(0, 1 - t / duration)
+            noise = random.uniform(-1, 1) * 0.45
+            volume = 17000
+
+        phase += 2 * math.pi * freq / rate
+        wave_value = math.sin(phase) * 0.65 + noise
+        value = int(max(-32767, min(32767,
+                                   volume * envelope * wave_value)))
+        samples.append(value)
 
     return pygame.mixer.Sound(buffer=samples.tobytes())
 
-fart_sound = make_fart_sound()
-fart_sound.set_volume(0.7)
 
-font = pygame.font.SysFont("comicsansms", 30, bold=True)
-small = pygame.font.SysFont("comicsansms", 21, bold=True)
-big = pygame.font.SysFont("comicsansms", 52, bold=True)
+sounds = {
+    "loud": create_sound("loud"),
+    "poin": create_sound("poin"),
+    "bhu": create_sound("bhu"),
+    "phat": create_sound("phat"),
+}
 
-# Gas particles
+sounds["loud"].set_volume(1.0)
+
+# Input box
+name = ""
+active = True
+result = "ENTER YOUR NAME!"
+sound_label = "READY?"
 particles = []
 score = 0
-gas_meter = 100
-sound_on = True
-running = True
-fart_timer = 0
 shake = 0
-message = "PRESS SPACE OR CLICK FART!"
-message_timer = 180
+result_timer = 0
 
-def text(msg, font_obj, color, pos):
-    img = font_obj.render(msg, True, color)
-    screen.blit(img, img.get_rect(center=pos))
+input_box = pygame.Rect(250, 155, 400, 55)
+button = pygame.Rect(330, 235, 240, 60)
 
-def fart():
-    global score, gas_meter, shake, message, message_timer
+def draw_text(text, font_obj, color, pos):
+    image = font_obj.render(text, True, color)
+    screen.blit(image, image.get_rect(center=pos))
 
-    if gas_meter >= 20:
-        score += 10
-        gas_meter -= 20
-        shake = 12
-        message = random.choice([
-            "PRRRRRT!!!",
-            "PFFFT! ",
-            "WHO DID THAT?!",
-            "FART ATTACK!",
-            "PEEE-YOOO!"
+def make_particles():
+    for _ in range(65):
+        particles.append([
+            random.randint(410, 490),
+            random.randint(340, 400),
+            random.uniform(-4, 4),
+            random.uniform(-5, 1),
+            random.randint(25, 70),
+            random.randint(8, 23)
         ])
-        message_timer = 65
 
-        for _ in range(45):
-            particles.append([
-                random.randint(420, 550),
-                random.randint(395, 435),
-                random.uniform(-3, 2),
-                random.uniform(-4, 1),
-                random.randint(35, 85),
-                random.randint(12, 28)
-            ])
+def generate_fart():
+    global result, sound_label, score, shake, result_timer
 
-        if sound_on:
-            fart_sound.play()
+    person = name.strip().lower()
 
-def draw_person(offset):
-    # Shadow
-    pygame.draw.ellipse(screen, (175, 170, 150),
-                        (325, 535, 330, 35))
+    if not person:
+        result = "PEHLE NAAM LIKHO!"
+        sound_label = "NO NAME"
+        return
 
-    # Legs
-    pygame.draw.line(screen, (35, 65, 160),
-                     (420 + offset, 435), (390 + offset, 535), 32)
-    pygame.draw.line(screen, (35, 65, 160),
-                     (510 + offset, 435), (550 + offset, 535), 32)
+    # Chetan: special silent mode
+    if person == "chetan":
+        result = "CHETAN: SILENT MODE 🤫"
+        sound_label = "NO SOUND!"
+        result_timer = 120
+        return
 
-    # Shoes
-    pygame.draw.ellipse(screen, (35, 35, 45),
-                        (350 + offset, 520, 75, 30))
-    pygame.draw.ellipse(screen, (35, 35, 45),
-                        (525 + offset, 520, 75, 30))
+    # Priyanshu: loud cartoon sound
+    elif person == "priyanshu":
+        result = "PRIYANSHU: BHADAAAM! 💥"
+        sound_label = "EXTRA LOUD FART!"
+        sounds["loud"].play()
+        shake = 15
+        score += 100
+        make_particles()
 
-    # Body
-    pygame.draw.ellipse(screen, (235, 65, 60),
-                        (375 + offset, 315, 175, 150))
+    # Everyone else gets a random funny sound
+    else:
+        kind = random.choice(["phat", "poin", "bhu"])
+        sounds[kind].play()
 
-    # Arms
-    pygame.draw.line(screen, (235, 65, 60),
-                     (395 + offset, 350), (350 + offset, 420), 27)
-    pygame.draw.line(screen, (235, 65, 60),
-                     (530 + offset, 350), (565 + offset, 405), 27)
+        labels = {
+            "phat": "PHATTT! 💨",
+            "poin": "POINNN! 🎈",
+            "bhu": "BHUUU! 💨"
+        }
 
-    # Hands
-    pygame.draw.circle(screen, (255, 205, 160),
-                       (350 + offset, 420), 16)
-    pygame.draw.circle(screen, (255, 205, 160),
-                       (565 + offset, 405), 16)
+        result = f"{name.strip()}: {labels[kind]}"
+        sound_label = "FUNNY SOUND!"
+        shake = 5
+        score += 10
+        make_particles()
 
-    # Head
-    pygame.draw.circle(screen, (255, 205, 160),
-                       (465 + offset, 255), 73)
+    result_timer = 120
 
-    # Hair
-    pygame.draw.arc(screen, (55, 35, 25),
-                    (395 + offset, 190, 140, 90), 0, math.pi, 12)
-    pygame.draw.circle(screen, (55, 35, 25),
-                       (415 + offset, 208), 18)
-    pygame.draw.circle(screen, (55, 35, 25),
-                       (440 + offset, 192), 20)
 
-    # Eyes
-    pygame.draw.ellipse(screen, (255, 255, 255),
-                        (428 + offset, 235, 20, 28))
-    pygame.draw.ellipse(screen, (255, 255, 255),
-                        (478 + offset, 235, 20, 28))
-    pygame.draw.circle(screen, (25, 25, 25),
-                       (440 + offset, 250), 6)
-    pygame.draw.circle(screen, (25, 25, 25),
-                       (490 + offset, 250), 6)
-
-    # Nose and goofy mouth
-    pygame.draw.circle(screen, (230, 140, 120),
-                       (463 + offset, 265), 7)
-    pygame.draw.ellipse(screen, (95, 20, 30),
-                        (444 + offset, 278, 43, 28))
-    pygame.draw.arc(screen, (255, 255, 255),
-                    (451 + offset, 280, 28, 13), 0, math.pi, 3)
-
-def draw_cloud(x, y, size, alpha_color):
-    color = alpha_color
-    for dx, dy, r in [
-        (0, 0, 1), (-0.6, 0.15, 0.7),
-        (0.55, 0.15, 0.8), (-0.2, -0.45, 0.65),
-        (0.35, -0.4, 0.6)
-    ]:
-        pygame.draw.circle(
-            screen, color,
-            (int(x + dx * size), int(y + dy * size)),
-            max(1, int(r * size))
-        )
+running = True
 
 while running:
-    dt = clock.tick(60)
-    fart_timer += dt
+    clock.tick(60)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                fart()
-            elif event.key == pygame.K_s:
-                sound_on = not sound_on
-            elif event.key == pygame.K_r:
-                score = 0
-                gas_meter = 100
-                particles.clear()
-                message = "FRESH START!"
-                message_timer = 90
-
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if pygame.Rect(35, 530, 190, 65).collidepoint(event.pos):
-                fart()
-            elif pygame.Rect(35, 600, 190, 35).collidepoint(event.pos):
-                sound_on = not sound_on
+            active = input_box.collidepoint(event.pos)
 
-    # Background
-    screen.fill((135, 205, 245))
+            if button.collidepoint(event.pos):
+                generate_fart()
 
-    # Clouds and sun
-    pygame.draw.circle(screen, (255, 230, 100), (850, 100), 55)
-    for x, y in [(130, 100), (730, 190), (270, 175)]:
-        pygame.draw.circle(screen, (255, 255, 255), (x, y), 27)
-        pygame.draw.circle(screen, (255, 255, 255), (x+25, y-10), 32)
-        pygame.draw.circle(screen, (255, 255, 255), (x+50, y), 24)
+        if event.type == pygame.KEYDOWN and active:
+            if event.key == pygame.K_RETURN:
+                generate_fart()
+            elif event.key == pygame.K_BACKSPACE:
+                name = name[:-1]
+            elif event.unicode.isprintable() and len(name) < 22:
+                name += event.unicode
 
-    # Ground
-    pygame.draw.rect(screen, (100, 195, 100), (0, 555, W, 95))
-
-    # Refill gas meter
-    if gas_meter < 100 and fart_timer > 500:
-        gas_meter = min(100, gas_meter + 0.025 * dt)
-
-    # Camera shake
-    offset = random.randint(-shake, shake) if shake > 0 else 0
+    # Screen shake
+    dx = random.randint(-shake, shake) if shake > 0 else 0
     shake = max(0, shake - 1)
 
-    draw_person(offset)
+    screen.fill((15, 20, 45))
 
-    # Cartoon gas clouds
+    # Background circles
+    for i in range(12):
+        x = (i * 91 + 30) % W
+        y = (i * 67 + 20) % H
+        pygame.draw.circle(screen, (25, 35, 70),
+                           (x, y), 20 + (i % 4) * 5, 2)
+
+    draw_text("FUNNY FART GENERATOR", big_font,
+              (100, 255, 150), (450 + dx, 55))
+
+    draw_text("TYPE A NAME AND DISCOVER THE SOUND!",
+              small_font, (230, 230, 255), (450, 100))
+
+    # Name input box
+    pygame.draw.rect(screen, (240, 245, 255), input_box,
+                     border_radius=12)
+    pygame.draw.rect(screen,
+                     (70, 255, 140) if active else (130, 140, 180),
+                     input_box, 3, border_radius=12)
+
+    shown_name = name if name else "Enter name here..."
+    color = (30, 35, 50) if name else (130, 130, 145)
+    draw_text(shown_name, font, color, (450, 182))
+
+    # Button
+    pygame.draw.rect(screen, (30, 180, 90), button,
+                     border_radius=15)
+    pygame.draw.rect(screen, (120, 255, 180), button, 3,
+                     border_radius=15)
+    draw_text("MAKE FART! 💨", font,
+              (255, 255, 255), (450, 265))
+
+    # Results
+    draw_text(result, font, (255, 225, 70), (450 + dx, 350))
+    draw_text(sound_label, small_font,
+              (100, 230, 255), (450, 395))
+
+    # Gas particles
     for p in particles[:]:
         p[0] += p[2]
         p[1] += p[3]
         p[4] -= 1
-        p[5] *= 0.99
+        p[5] *= 0.985
 
         if p[4] <= 0 or p[5] < 2:
             particles.remove(p)
             continue
 
-        green = random.choice([
-            (100, 215, 55), (135, 230, 65),
-            (75, 185, 65), (175, 225, 75)
+        color = random.choice([
+            (100, 240, 80), (160, 255, 90),
+            (80, 200, 100), (200, 255, 120)
         ])
-        draw_cloud(p[0], p[1], p[5], green)
+        pygame.draw.circle(screen, color,
+                           (int(p[0]), int(p[1])),
+                           int(p[5]))
 
-    # Funny popup
-    if message_timer > 0:
-        message_timer -= 1
-        text(message, big, (40, 70, 30), (500, 85))
+    draw_text(f"SCORE: {score}", small_font,
+              (255, 220, 70), (780, 35))
 
-    # Score panel
-    pygame.draw.rect(screen, (30, 35, 55), (760, 20, 210, 85),
-                     border_radius=18)
-    text(f"SCORE: {score}", font, (255, 230, 80), (865, 62))
+    draw_text("ENTER = PLAY | CLICK = GENERATE",
+              small_font, (220, 225, 245), (450, 550))
 
-    # Gas meter
-    pygame.draw.rect(screen, (35, 45, 60), (30, 25, 250, 35),
-                     border_radius=10)
-    pygame.draw.rect(screen, (80, 225, 80),
-                     (35, 30, int(240 * gas_meter / 100), 25),
-                     border_radius=8)
-    text("FART POWER", small, (30, 50, 35), (145, 80))
-
-    # Buttons
-    pygame.draw.rect(screen, (30, 135, 55), (35, 530, 190, 65),
-                     border_radius=16)
-    text("💨 FART!", font, (255, 255, 255), (130, 562))
-
-    pygame.draw.rect(screen, (40, 45, 65), (35, 600, 190, 35),
-                     border_radius=10)
-    text("SOUND: ON" if sound_on else "SOUND: OFF",
-         small, (255, 255, 255), (130, 617))
-
-    text("SPACE = FART     S = SOUND     R = RESET",
-         small, (35, 45, 55), (600, 615))
+    draw_text("SILENT MODE AVAILABLE 🤫",
+              small_font, (150, 180, 220), (450, 580))
 
     pygame.display.flip()
 
