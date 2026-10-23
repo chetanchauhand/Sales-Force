@@ -4,76 +4,80 @@ import random
 import math
 
 pygame.init()
-
-WIDTH, HEIGHT = 1000, 700
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("NEON GALAXY")
-
+W, H = 1000, 700
+screen = pygame.display.set_mode((W, H))
+pygame.display.set_caption("BLACK HOLE SIMULATOR")
 clock = pygame.time.Clock()
-center = (WIDTH // 2, HEIGHT // 2)
 
-stars = []
+cx, cy = W // 2, H // 2
+particles = []
 
-for _ in range(700):
-    angle = random.uniform(0, math.tau)
-    radius = random.uniform(10, 340)
-    speed = random.uniform(0.15, 0.8)
-    size = random.choice([1, 1, 2, 3])
+for _ in range(850):
+    particles.append([
+        random.uniform(45, 330),
+        random.uniform(0, math.tau),
+        random.uniform(0.003, 0.018),
+        random.randint(1, 3)
+    ])
 
-    stars.append([angle, radius, speed, size])
+stars = [(random.randrange(W), random.randrange(H))
+         for _ in range(250)]
 
 running = True
-rotation = 0
+angle_offset = 0
 
 while running:
-    screen.fill((3, 4, 18))
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT:
             running = False
 
-    rotation += 0.003
+    screen.fill((2, 3, 15))
 
-    # Glowing galaxy core
-    for r in range(100, 5, -5):
-        glow = max(0, 150 - r)
-        pygame.draw.circle(
-            screen,
-            (glow // 3, 0, glow),
-            center,
-            r,
-            2
+    for x, y in stars:
+        screen.set_at((x, y), (90, 100, 150))
+
+    angle_offset += 0.01
+
+    # Accretion disk
+    for radius in range(320, 45, -3):
+        col = (max(20, 150 - radius // 3),
+               max(5, 75 - radius // 5), 255)
+        pygame.draw.ellipse(
+            screen, col,
+            (cx-radius, cy-radius*0.45,
+             radius*2, radius*0.9), 1
         )
 
-    # Spiral stars
-    for star in stars:
-        angle, radius, speed, size = star
-        angle += speed * 0.008 + rotation
-        star[0] = angle
+    # Orbiting glowing particles
+    for p in particles:
+        r, a, speed, size = p
+        a += speed * (350 / max(r, 40))
+        p[1] = a
 
-        spiral_angle = angle + radius * 0.018
+        x = cx + math.cos(a + angle_offset) * r
+        y = cy + math.sin(a + angle_offset) * r * 0.43
 
-        x = center[0] + math.cos(spiral_angle) * radius
-        y = center[1] + math.sin(spiral_angle) * radius * 0.62
+        color = random.choice([
+            (255, 90, 20), (255, 180, 50),
+            (100, 170, 255), (220, 80, 255)
+        ])
+        pygame.draw.circle(screen, color,
+                           (int(x), int(y)), size)
 
-        color = (
-            random.randint(70, 120),
-            random.randint(100, 190),
-            255
-        )
-
-        pygame.draw.circle(
-            screen, color,
-            (int(x), int(y)), size
-        )
-
-    # Central energy sphere
-    pygame.draw.circle(screen, (70, 160, 255), center, 9)
-    pygame.draw.circle(screen, (220, 240, 255), center, 4)
+    # Event horizon and photon ring
+    pygame.draw.ellipse(
+        screen, (255, 180, 60),
+        (cx-65, cy-30, 130, 60), 3
+    )
+    pygame.draw.circle(screen, (0, 0, 0), (cx, cy), 42)
+    pygame.draw.circle(screen, (120, 170, 255),
+                       (cx, cy), 44, 2)
 
     font = pygame.font.SysFont("consolas", 22)
-    label = font.render("NEON GALAXY // LIVE", True, (0, 220, 255))
-    screen.blit(label, (25, 25))
+    screen.blit(font.render("EVENT HORIZON", True,
+                            (100, 210, 255)), (25, 25))
+    screen.blit(font.render("PARTICLE ORBITS: ACTIVE", True,
+                            (255, 140, 50)), (25, 55))
 
     pygame.display.flip()
     clock.tick(60)
