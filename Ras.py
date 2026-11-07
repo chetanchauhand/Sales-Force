@@ -149,7 +149,6 @@ while running:
         SYRUP,
         (185, 475, 630, 125)
     )
-
     # Syrup waves
     wave_points = []
 
